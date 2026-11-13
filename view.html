@@ -104,6 +104,7 @@
                             <th class="py-4 px-6">Participant Name</th>
                             <th class="py-4 px-6">Father Name</th>
                             <th class="py-4 px-6">DOB</th>
+                            <th class="py-4 px-6">Age</th>
                             <th class="py-4 px-6">Class</th>
                             <th class="py-4 px-6">School</th>
                             <th class="py-4 px-6">Address</th>
@@ -130,7 +131,7 @@
     <!-- Footer -->
     <footer class="bg-white border-t border-gray-100 py-6 mt-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-gray-500">
-            <p>National Children's Day Celebration &bull; Organized by <span class="font-semibold text-[#8ba61b]">Gnanamani Clinic</span></p>
+            <p>National Children's Day Celebration • Organized by <span class="font-semibold text-[#8ba61b]">Gnanamani Clinic</span></p>
         </div>
     </footer>
 
@@ -201,6 +202,49 @@
             renderRecords(allRecords);
         }
 
+        // Helper function to parse DOB (handles Excel serial numbers and string dates) into a valid JS Date object
+        function parseDate(val) {
+            if (!val) return null;
+            if (!isNaN(val) && Number(val) > 10000) {
+                const excelEpoch = new Date(1899, 11, 30);
+                return new Date(excelEpoch.getTime() + Number(val) * 86400000);
+            }
+            const d = new Date(val);
+            return isNaN(d.getTime()) ? null : d;
+        }
+
+        // Format Date to DD-MM-YYYY
+        function formatDisplayDate(val) {
+            const d = parseDate(val);
+            if (!d) return val;
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${day}-${month}-${year}`;
+        }
+
+        // Calculate Age from DOB
+        function calculateAge(val) {
+            const dobDate = parseDate(val);
+            if (!dobDate) return '-';
+            
+            const today = new Date();
+            let years = today.getFullYear() - dobDate.getFullYear();
+            let months = today.getMonth() - dobDate.getMonth();
+            
+            if (months < 0 || (months === 0 && today.getDate() < dobDate.getDate())) {
+                years--;
+                months += 12;
+            }
+            
+            if (years === 0) {
+                return `${months} mos`;
+            } else if (years < 3 && months > 0) {
+                return `${years}y ${months}m`;
+            }
+            return `${years} yrs`;
+        }
+
         function renderRecords(records) {
             const tbody = document.getElementById('records-table-body');
             const emptyState = document.getElementById('empty-state');
@@ -215,6 +259,9 @@
             }
 
             records.forEach((rec, index) => {
+                const formattedDob = formatDisplayDate(rec.dob);
+                const computedAge = calculateAge(rec.dob);
+
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-lime-50/50 transition-colors";
                 tr.innerHTML = `
@@ -226,7 +273,8 @@
                         </div>
                     </td>
                     <td class="py-4 px-6 text-gray-600">${escapeHtml(rec.fatherName)}</td>
-                    <td class="py-4 px-6 text-gray-600 whitespace-nowrap">${escapeHtml(rec.dob)}</td>
+                    <td class="py-4 px-6 text-gray-600 whitespace-nowrap">${escapeHtml(formattedDob)}</td>
+                    <td class="py-4 px-6 text-gray-600 whitespace-nowrap font-medium"><span class="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold">${escapeHtml(computedAge)}</span></td>
                     <td class="py-4 px-6 text-gray-600"><span class="px-2.5 py-1 bg-gray-100 rounded-lg text-xs font-medium">${escapeHtml(rec.classGrade)}</span></td>
                     <td class="py-4 px-6 text-gray-600">${escapeHtml(rec.school)}</td>
                     <td class="py-4 px-6 text-gray-500 text-xs max-w-xs truncate" title="${escapeHtml(rec.address)}">${escapeHtml(rec.address)}</td>
@@ -256,11 +304,11 @@
         function escapeHtml(str) {
             if (!str) return '';
             return String(str)
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
+                .replace(/&/g, "&")
+                .replace(/</g, "<")
+                .replace(/>/g, ">")
+                .replace(/"/g, """)
+                .replace(/'/g, "'");
         }
     </script>
 </body>
