@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enroll Participant - National Children's Day Celebration</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS (xlsx) for reading published excel sheet -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            DEFAULT: '#a5c422',
+                            50: '#f7faa9',
+                            100: '#f3f88c',
+                            500: '#a5c422',
+                            600: '#8ba61b',
+                            700: '#6e8514',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-lime-50 via-amber-50 to-emerald-50 min-h-full flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white shadow-md border-b border-lime-100 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-[#a5c422] text-white p-3 rounded-2xl shadow-lg shadow-lime-200">
+                    <i class="fa-solid fa-child-reaching text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">National Children's Day Celebration</h1>
+                    <p class="text-sm font-semibold text-[#8ba61b]">Gnanamani Clinic</p>
+                </div>
+            </div>                    
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Notification Modal / Custom Alert Box -->
+        <div id="notification-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all scale-100">
+                <div id="modal-icon-container" class="w-12 h-12 rounded-full flex items-center justify-center mb-4 mx-auto text-xl"></div>
+                <h3 id="modal-title" class="text-lg font-bold text-gray-900 text-center mb-2"></h3>
+                <p id="modal-message" class="text-sm text-gray-600 text-center mb-6"></p>
+                <div id="modal-actions" class="flex flex-col gap-2">
+                    <button onclick="closeModal()" id="modal-ok-btn" class="w-full py-3 bg-[#a5c422] hover:bg-[#8ba61b] text-white font-semibold rounded-xl shadow-lg shadow-lime-200 transition-all">
+                        OK
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enrollment Form Card -->
+        <div class="bg-white rounded-3xl shadow-xl border border-lime-100 overflow-hidden">
+            <div class="bg-gradient-to-r from-[#a5c422] to-emerald-600 px-8 py-6 text-white flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-bold">Child Participant Registration</h2>                    
+                </div>
+                <div class="hidden sm:block text-right" style="display: none;">
+                    <span id="sync-status" class="text-xs bg-white/20 px-3 py-1.5 rounded-full text-white font-medium">Loading sync records...</span>
+                </div>
+            </div>
+            
+            <form id="enrollment-form" onsubmit="handleEnrollment(event)" class="p-8 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Participant Name -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Participant Name <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400"><i class="fa-solid fa-child"></i></span>
+                            <input type="text" id="reg-name" required placeholder="Enter child's full name" class="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a5c422] focus:bg-white transition-all outline-none text-sm">
+                        </div>
+                    </div>
+
+                    <!-- Father Name -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Father Name <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400"><i class="fa-solid fa-user-tie"></i></span>
+                            <input type="text" id="reg-father" required placeholder="Enter father's name" class="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a5c422] focus:bg-white transition-all outline-none text-sm">
+                        </div>
+                    </div>
+
+                    <!-- DOB -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Date of Birth (DOB) <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400"><i class="fa-solid fa-calendar"></i></span>
+                            <input type="date" id="reg-dob" required class="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a5c422] focus:bg-white transition-all outline-none text-sm">
+                        </div>
+                    </div>
+
+                    <!-- Class -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Class / Grade <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400"><i class="fa-solid fa-graduation-cap"></i></span>
+                            <input type="text" id="reg-class" required placeholder="e.g. 5th Standard, Grade 6" class="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a5c422] focus:bg-white transition-all outline-none text-sm">
+                        </div>
+                    </div>
+
+                    <!-- School -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">School Name <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400"><i class="fa-solid fa-school"></i></span>
+                            <input type="text" id="reg-school" required placeholder="Enter school name" class="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a5c422] focus:bg-white transition-all outline-none text-sm">
+                        </div>
+                    </div>
+
+                    <!-- Address -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Address <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <span class="absolute top-3 left-4 text-gray-400"><i class="fa-solid fa-location-dot"></i></span>
+                            <textarea id="reg-address" required rows="3" placeholder="Enter complete residential address" class="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a5c422] focus:bg-white transition-all outline-none text-sm resize-none"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-4 flex items-center justify-between border-t border-gray-100">                    
+                    <div class="flex space-x-4">
+                        <button type="reset" class="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-all text-sm">
+                            Reset
+                        </button>
+                        <button type="submit" id="submit-btn" class="px-8 py-3 bg-[#a5c422] hover:bg-[#8ba61b] text-white font-semibold rounded-xl shadow-lg shadow-lime-200 transition-all flex items-center space-x-2 text-sm">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>Submit Enrollment</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-100 py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-gray-500">
+            <p>National Children's Day Celebration &bull; Organized by <span class="font-semibold text-[#8ba61b]">Gnanamani Clinic</span></p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+    const SHEET_ENDPOINT = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDu5NFcWqqBRH0aWteaR3rLFkOL6jK2xqTS-iKWc9uTh1UfjM3DrDa-dvjgpgEoTU3B1eRMpC5VuGu/pub?output=xlsx";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby0sfgtCIJ-yJoZ-Kand-0q02nQ_-u9xRBfpSskDXa2uoX14ohVDQ4PU5btrKFUt34mPg/exec"; // <-- Paste your deployed Web App URL here
+    const STORAGE_KEY = "gnanamani_children_participants_v2";
+
+    let allRecords = [];
+
+    // Load and parse spreadsheet + local records on startup
+    window.addEventListener('DOMContentLoaded', async () => {
+        const statusEl = document.getElementById('sync-status');
+        let sheetRows = [];
+
+        try {
+            const response = await fetch(SHEET_ENDPOINT);
+            if (!response.ok) throw new Error("Network response failed");
+            const arrayBuffer = await response.arrayBuffer();
+            const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+            sheetRows = jsonData.map(row => ({
+                name: String(row['Name'] || row['Participant Name'] || row['name'] || '').trim(),
+                fatherName: String(row['Father Name'] || row['FatherName'] || row['father name'] || row['Father\'s Name'] || '').trim(),
+                address: String(row['Address'] || row['address'] || '').trim(),
+                dob: String(row['DOB'] || row['dob'] || row['Date of Birth'] || '').trim(),
+                classGrade: String(row['Class'] || row['class'] || '').trim(),
+                school: String(row['School'] || row['school'] || '').trim(),
+                source: 'sheet'
+            })).filter(r => r.name !== '');
+        } catch (err) {
+            console.warn("Could not load Google Sheet endpoint, using local cache.", err);
+        }
+
+        let localRows = [];
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) localRows = JSON.parse(saved);
+        } catch (e) {}
+
+        const combinedMap = new Map();
+        sheetRows.forEach(r => {
+            const key = `${r.name.toLowerCase()}_${r.fatherName.toLowerCase()}_${r.dob}_${r.classGrade.toLowerCase()}_${r.school.toLowerCase()}`;
+            combinedMap.set(key, r);
+        });
+        localRows.forEach(r => {
+            const key = `${r.name.toLowerCase()}_${r.fatherName.toLowerCase()}_${r.dob}_${r.classGrade.toLowerCase()}_${r.school.toLowerCase()}`;
+            combinedMap.set(key, r);
+        });
+
+        allRecords = Array.from(combinedMap.values());
+        if (statusEl) statusEl.textContent = `${allRecords.length} records synchronized`;
+    });
+
+    function showAlert(title, message, isSuccess = true, customActions = null) {
+        const modal = document.getElementById('notification-modal');
+        const iconContainer = document.getElementById('modal-icon-container');
+        const titleEl = document.getElementById('modal-title');
+        const msgEl = document.getElementById('modal-message');
+        const actionsContainer = document.getElementById('modal-actions');
+
+        titleEl.textContent = title;
+        msgEl.textContent = message;
+
+        if (isSuccess) {
+            iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mb-4 mx-auto text-xl bg-lime-100 text-[#8ba61b]";
+            iconContainer.innerHTML = '<i class="fa-solid fa-check"></i>';
+        } else {
+            iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mb-4 mx-auto text-xl bg-red-100 text-red-600";
+            iconContainer.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+        }
+
+        if (customActions) {
+            actionsContainer.innerHTML = customActions;
+        } else {
+            actionsContainer.innerHTML = `<button onclick="closeModal()" class="w-full py-3 bg-[#a5c422] hover:bg-[#8ba61b] text-white font-semibold rounded-xl shadow-lg shadow-lime-200 transition-all">OK</button>`;
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+        document.getElementById('notification-modal').classList.add('hidden');
+    }
+
+    function checkIsDuplicate(newRec, recordsList) {
+        const clean = str => String(str || '').trim().toLowerCase();
+        const nName = clean(newRec.name);
+        const nFather = clean(newRec.fatherName);
+        const nDob = clean(newRec.dob);
+        const nClass = clean(newRec.classGrade);
+        const nSchool = clean(newRec.school);
+
+        return recordsList.some(existing => {
+            return clean(existing.name) === nName &&
+                   clean(existing.fatherName) === nFather &&
+                   clean(existing.dob) === nDob &&
+                   clean(existing.classGrade) === nClass &&
+                   clean(existing.school) === nSchool;
+        });
+    }
+
+    async function handleEnrollment(event) {
+        event.preventDefault();
+
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Submitting...</span>`;
+
+        const newRecord = {
+            name: document.getElementById('reg-name').value.trim(),
+            fatherName: document.getElementById('reg-father').value.trim(),
+            dob: document.getElementById('reg-dob').value,
+            classGrade: document.getElementById('reg-class').value.trim(),
+            school: document.getElementById('reg-school').value.trim(),
+            address: document.getElementById('reg-address').value.trim()
+        };
+
+        if (checkIsDuplicate(newRecord, allRecords)) {
+            showAlert(
+                "Duplicate Participant Detected!", 
+                "A child participant with the exact same Name, Father Name, Date of Birth, Class, and School is already registered.", 
+                false
+            );
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i><span>Submit Enrollment</span>`;
+            return;
+        }
+
+        try {
+            // Send data to Google Apps Script Web App
+            await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Required for Google Apps Script web app endpoints
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newRecord)
+            });
+
+            allRecords.push(newRecord);
+            document.getElementById('enrollment-form').reset();
+
+            showAlert(
+                "Enrollment Successful!", 
+                `Successfully registered ${newRecord.name} for the National Children's Day Celebration. Data has been saved to the Google Sheet.`
+            );
+        } catch (err) {
+            console.error(err);
+            showAlert("Submission Error", "Could not connect to the server. Please try again.", false);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i><span>Submit Enrollment</span>`;
+        }
+    }
+</script>
+</body>
+</html>
