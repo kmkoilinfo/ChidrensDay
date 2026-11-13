@@ -10,8 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- SheetJS (xlsx) for reading published excel sheet -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- PapaParse for robust CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -73,14 +73,14 @@
             <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-900">Registered Participants</h2>
-                    <p class="text-sm text-gray-500 mt-1">Showing all participant records synced from Google Sheet and local browser submissions.</p>
+                    <p class="text-sm text-gray-500 mt-1">Showing all participant records synced from Google Sheet CSV and local browser submissions.</p>
                 </div>
                 <div class="flex items-center space-x-3 w-full sm:w-auto">
                     <div class="relative flex-grow sm:w-64">
                         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-search"></i></span>
-                        <input type="text" id="search-input" oninput="filterRecords()" placeholder="Search name, school..." class="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#a5c422] focus:bg-white outline-none">
+                        <input type="text" id="search-input" oninput="window.filterRecords()" placeholder="Search name, school..." class="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#a5c422] focus:bg-white outline-none">
                     </div>
-                    <button onclick="loadSheetData()" title="Refresh Data" class="p-2.5 bg-lime-50 hover:bg-lime-100 text-[#8ba61b] rounded-xl transition-all border border-lime-200">
+                    <button onclick="window.loadSheetData()" title="Refresh Data" class="p-2.5 bg-lime-50 hover:bg-lime-100 text-[#8ba61b] rounded-xl transition-all border border-lime-200">
                         <i class="fa-solid fa-rotate" id="refresh-icon"></i>
                     </button>
                 </div>
@@ -90,7 +90,7 @@
             <div id="sync-banner" class="mb-6 p-4 bg-lime-50 border border-lime-200 rounded-2xl flex items-center justify-between text-sm text-[#6e8514]">
                 <div class="flex items-center space-x-3">
                     <i class="fa-solid fa-cloud-arrow-down text-lg text-[#a5c422]"></i>
-                    <span id="sync-status-text">Connecting to Google Sheet endpoint...</span>
+                    <span id="sync-status-text">Connecting to Google Sheet CSV endpoint...</span>
                 </div>
                 <span id="record-count-badge" class="px-3 py-1 bg-lime-200/60 font-semibold rounded-full text-xs">0 Participants</span>
             </div>
@@ -123,7 +123,7 @@
                 </div>
                 <h3 class="text-base font-bold text-gray-800">No participant records found</h3>
                 <p class="text-sm text-gray-500 mt-1">Get started by enrolling a new child participant.</p>
-                <a href="enroll.html" class="inline-block mt-4 px-6 py-2.5 bg-[#a5c422] hover:bg-[#8ba61b] text-white font-semibold rounded-xl text-sm transition-all">Go to Enrollment</a>
+                <a href="index.html" class="inline-block mt-4 px-6 py-2.5 bg-[#a5c422] hover:bg-[#8ba61b] text-white font-semibold rounded-xl text-sm transition-all">Go to Enrollment</a>
             </div>
         </div>
     </main>
@@ -137,66 +137,81 @@
 
     <!-- JavaScript Application Logic -->
     <script>
-        const SHEET_ENDPOINT = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDu5NFcWqqBRH0aWteaR3rLFkOL6jK2xqTS-iKWc9uTh1UfjM3DrDa-dvjgpgEoTU3B1eRMpC5VuGu/pub?output=xlsx";
+        const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDu5NFcWqqBRH0aWteaR3rLFkOL6jK2xqTS-iKWc9uTh1UfjM3DrDa-dvjgpgEoTU3B1eRMpC5VuGu/pub?gid=0&single=true&output=csv";
         const STORAGE_KEY = "gnanamani_children_participants_v2";
 
         let allRecords = [];
 
         window.addEventListener('DOMContentLoaded', () => {
-            loadSheetData();
+            window.loadSheetData();
         });
 
-        async function loadSheetData() {
+        window.loadSheetData = function() {
             const statusText = document.getElementById('sync-status-text');
             const refreshIcon = document.getElementById('refresh-icon');
             
             refreshIcon.classList.add('fa-spin');
-            statusText.textContent = "Fetching participant records from Google Sheet...";
+            statusText.textContent = "Fetching participant records from Google Sheet CSV...";
 
-            let sheetRows = [];
-            try {
-                const response = await fetch(SHEET_ENDPOINT);
-                if (!response.ok) throw new Error("Network response failed");
-                const arrayBuffer = await response.arrayBuffer();
-                const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+            Papa.parse(SHEET_CSV_URL, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    refreshIcon.classList.remove('fa-spin');
+                    
+                    let sheetRows = [];
+                    if (results && results.data) {
+                        sheetRows = results.data.map(row => ({
+                            name: String(row['Name'] || row['Participant Name'] || row['name'] || '').trim(),
+                            fatherName: String(row['Father Name'] || row['FatherName'] || row['father name'] || row['Father Name'] || '').trim(),
+                            address: String(row['Address'] || row['address'] || '').trim(),
+                            dob: String(row['DOB'] || row['dob'] || row['Date of Birth'] || '').trim(),
+                            classGrade: String(row['Class'] || row['class'] || '').trim(),
+                            school: String(row['School'] || row['school'] || '').trim(),
+                            source: 'sheet'
+                        })).filter(r => r.name !== '');
+                    }
 
-                sheetRows = jsonData.map(row => ({
-                    name: String(row['Name'] || row['Participant Name'] || row['name'] || '').trim(),
-                    fatherName: String(row['Father Name'] || row['FatherName'] || row['father name'] || row['Father\'s Name'] || '').trim(),
-                    address: String(row['Address'] || row['address'] || '').trim(),
-                    dob: String(row['DOB'] || row['dob'] || row['Date of Birth'] || '').trim(),
-                    classGrade: String(row['Class'] || row['class'] || '').trim(),
-                    school: String(row['School'] || row['school'] || '').trim(),
-                    source: 'sheet'
-                })).filter(r => r.name !== '');
-            } catch (error) {
-                console.warn("Could not fetch published Sheet endpoint, falling back to local cache.", error);
-                statusText.textContent = "Offline mode / Sheet fetch failed. Showing local participant registrations.";
-            }
+                    let localRows = [];
+                    try {
+                        const saved = localStorage.getItem(STORAGE_KEY);
+                        if (saved) localRows = JSON.parse(saved);
+                    } catch (e) {}
 
-            let localRows = [];
-            try {
-                const saved = localStorage.getItem(STORAGE_KEY);
-                if (saved) localRows = JSON.parse(saved);
-            } catch (e) {}
+                    const combinedMap = new Map();
+                    sheetRows.forEach(r => {
+                        const key = `${r.name.toLowerCase()}_${r.fatherName.toLowerCase()}_${r.dob}_${r.classGrade.toLowerCase()}_${r.school.toLowerCase()}`;
+                        combinedMap.set(key, r);
+                    });
+                    localRows.forEach(r => {
+                        const key = `${r.name.toLowerCase()}_${r.fatherName.toLowerCase()}_${r.dob}_${r.classGrade.toLowerCase()}_${r.school.toLowerCase()}`;
+                        combinedMap.set(key, r);
+                    });
 
-            const combinedMap = new Map();
-            sheetRows.forEach(r => {
-                const key = `${r.name.toLowerCase()}_${r.fatherName.toLowerCase()}_${r.dob}_${r.classGrade.toLowerCase()}_${r.school.toLowerCase()}`; combinedMap.set(key, r); }); localRows.forEach(r => { const key = `${r.name.toLowerCase()}_${r.fatherName.toLowerCase()}_${r.dob}_${r.classGrade.toLowerCase()}_${r.school.toLowerCase()}`;
-                combinedMap.set(key, r);
+                    allRecords = Array.from(combinedMap.values());
+                    statusText.textContent = `Successfully synced! Total participants: ${allRecords.length}`;
+                    document.getElementById('record-count-badge').textContent = `${allRecords.length} Participants`;
+                    window.renderRecords(allRecords);
+                },
+                error: function(err) {
+                    console.warn("CSV fetch error, falling back to local cache.", err);
+                    refreshIcon.classList.remove('fa-spin');
+                    statusText.textContent = "Offline mode / Sheet fetch failed. Showing local registrations.";
+                    
+                    let localRows = [];
+                    try {
+                        const saved = localStorage.getItem(STORAGE_KEY);
+                        if (saved) localRows = JSON.parse(saved);
+                    } catch (e) {}
+                    
+                    allRecords = localRows;
+                    document.getElementById('record-count-badge').textContent = `${allRecords.length} Participants`;
+                    window.renderRecords(allRecords);
+                }
             });
-
-            allRecords = Array.from(combinedMap.values());
-
-            refreshIcon.classList.remove('fa-spin');
-            statusText.textContent = `Successfully synced! Total participants: ${allRecords.length}`;  document.getElementById('record-count-badge').textContent = `${allRecords.length} Participants`;
-            renderRecords(allRecords);
         }
 
-        // Helper function to parse DOB (handles Excel serial numbers and string dates) into a valid JS Date object
         function parseDate(val) {
             if (!val) return null;
             if (!isNaN(val) && Number(val) > 10000) {
@@ -207,11 +222,100 @@
             return isNaN(d.getTime()) ? null : d;
         }
 
-        // Format Date to DD-MM-YYYY
         function formatDisplayDate(val) {
             const d = parseDate(val);
             if (!d) return val;
             const day = String(d.getDate()).padStart(2, '0');
             const month = String(d.getMonth() + 1).padStart(2, '0');
             const year = d.getFullYear();
-            return `${day}-${month}-${year}`; }  // Calculate Age from DOB function calculateAge(val) { const dobDate = parseDate(val); if (!dobDate) return '-';  const today = new Date(); let years = today.getFullYear() - dobDate.getFullYear(); let months = today.getMonth() - dobDate.getMonth();  if (months < 0 \vert{}\vert{} (months === 0 && today.getDate() < dobDate.getDate())) { years--; months += 12; }  if (years === 0) { return `${months} mos
+            return `${day}-${month}-${year}`;
+        }
+
+        function calculateAge(val) {
+            const dobDate = parseDate(val);
+            if (!dobDate) return '-';
+            
+            const today = new Date();
+            let years = today.getFullYear() - dobDate.getFullYear();
+            let months = today.getMonth() - dobDate.getMonth();
+            
+            if (months < 0 || (months === 0 && today.getDate() < dobDate.getDate())) {
+                years--;
+                months += 12;
+            }
+            
+            if (years === 0) {
+                return `${months} mos`;
+            } else if (years < 3 && months > 0) {
+                return `${years}y ${months}m`;
+            }
+            return `${years} yrs`;
+        }
+
+        window.renderRecords = function(records) {
+            const tbody = document.getElementById('records-table-body');
+            const emptyState = document.getElementById('empty-state');
+            
+            tbody.innerHTML = '';
+
+            if (!records || records.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            records.forEach((rec, index) => {
+                const formattedDob = formatDisplayDate(rec.dob);
+                const computedAge = calculateAge(rec.dob);
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-lime-50/50 transition-colors";
+                tr.innerHTML = `
+                    <td class="py-4 px-6 font-medium text-gray-400">${index + 1}</td>
+                    <td class="py-4 px-6 font-semibold text-gray-900">
+                        <div class="flex items-center space-x-2">
+                            <span>${escapeHtml(rec.name)}</span>
+                            ${rec.source === 'local' ? '<span class="px-2 py-0.5 text-[10px] bg-lime-100 text-[#8ba61b] font-bold rounded-full">New</span>' : ''}
+                        </div>
+                    </td>
+                    <td class="py-4 px-6 text-gray-600">${escapeHtml(rec.fatherName)}</td>
+                    <td class="py-4 px-6 text-gray-600 whitespace-nowrap">${escapeHtml(formattedDob)}</td>
+                    <td class="py-4 px-6 text-gray-600 whitespace-nowrap font-medium"><span class="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold">${escapeHtml(computedAge)}</span></td>
+                    <td class="py-4 px-6 text-gray-600"><span class="px-2.5 py-1 bg-gray-100 rounded-lg text-xs font-medium">${escapeHtml(rec.classGrade)}</span></td>
+                    <td class="py-4 px-6 text-gray-600">${escapeHtml(rec.school)}</td>
+                    <td class="py-4 px-6 text-gray-500 text-xs max-w-xs truncate" title="${escapeHtml(rec.address)}">${escapeHtml(rec.address)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        window.filterRecords = function() {
+            const query = document.getElementById('search-input').value.toLowerCase().trim();
+            if (!query) {
+                window.renderRecords(allRecords);
+                return;
+            }
+
+            const filtered = allRecords.filter(r => 
+                r.name.toLowerCase().includes(query) ||
+                r.fatherName.toLowerCase().includes(query) ||
+                r.school.toLowerCase().includes(query) ||
+                r.classGrade.toLowerCase().includes(query) ||
+                r.address.toLowerCase().includes(query)
+            );
+
+            window.renderRecords(filtered);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, "&")
+                .replace(/</g, "<")
+                .replace(/>/g, ">")                
+                .replace(/'/g, "'");
+        }
+    </script>
+</body>
+</html>
